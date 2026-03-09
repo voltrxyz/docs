@@ -1,6 +1,6 @@
 ---
 title: Yield Generation
-description: "rgUSD generates yield through two complementary strategies"
+description: "rgUSD generates yield through dynamic lending optimization"
 ---
 
 ## Yield Aggregator
@@ -17,16 +17,6 @@ Currently, rgUSD utilises the following lending protocols:
 
 These platforms were integrated for their size, liquidity depth and operational resilience, helping to minimise counterparty and systemic risks.
 
-## Delta-Neutral Funding Rate Enhancement
-
-Base lending yields can be boosted by farming funding rates when those returns are expected to exceed what's available in standard lending markets:
-
-- **Funding Rate Farming**: Earns funding fees by holding spot positions in major L1 assets (SOL, BTC, and ETH) while simultaneously hedging with matching perpetual positions on Drift Protocol to maintain a delta-neutral profile.
-
-This design allows rgUSD to earn above market returns while minimising risk.
-
-Together, both strategies create a robust yield engine: lending provides stable base returns, while funding rate farming adds opportunistic boosts during favourable market conditions.
-
 ## Performance Summary
 
 <Note>Performance data as of 23 Nov 2025</Note>
@@ -35,4 +25,4 @@ Together, both strategies create a robust yield engine: lending provides stable 
 |---|:---:|:---:|:---:|:---:|:---:|
 | **7-Day APY** | **8.56%** | 3.51% | 4.20% | 4.82% | 5.52% |
 | **30-Day APY** | **8.89%** | 6.06% | 3.83% | 6.61% | 6.67% |
-| **Yield Strategy** | Lending + Delta neutral | Lending only | Lending only | Lending only | Lending only |
+| **Yield Strategy** | Dynamic lending optimization | Lending only | Lending only | Lending only | Lending only |
