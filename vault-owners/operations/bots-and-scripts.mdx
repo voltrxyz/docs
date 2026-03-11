@@ -23,17 +23,17 @@ Vault operations require automation for optimal performance.
 
 | Repository | Use Case |
 |---|---|
-| [ranger-finance/lend-scripts](https://github.com/ranger-finance/lend-scripts) | Lending strategy init (Project0, Save) |
-| [ranger-finance/kamino-scripts](https://github.com/ranger-finance/kamino-scripts) | Kamino strategy init, rewards claiming |
-| [ranger-finance/drift-scripts](https://github.com/ranger-finance/drift-scripts) | Drift vaults/lend/perps strategy init, position management |
-| [ranger-finance/spot-scripts](https://github.com/ranger-finance/spot-scripts) | Jupiter Swap/Lend strategy init |
-| [ranger-finance/client-raydium-clmm-scripts](https://github.com/ranger-finance/client-raydium-clmm-scripts) | Raydium CLMM strategy init |
-| [ranger-finance/trustful-scripts](https://github.com/ranger-finance/trustful-scripts) | Trustful adaptor strategy init |
-| [ranger-finance/rebalance-bot-template](https://github.com/ranger-finance/rebalance-bot-template) | Production-ready rebalance bot (equal-weight allocation) |
+| [ranger-finance/lend-scripts](https://github.com/voltrxyz/lend-scripts) | Lending strategy init (Project0, Save) |
+| [ranger-finance/kamino-scripts](https://github.com/voltrxyz/kamino-scripts) | Kamino strategy init, rewards claiming |
+| [ranger-finance/drift-scripts](https://github.com/voltrxyz/drift-scripts) | Drift vaults/lend/perps strategy init, position management |
+| [ranger-finance/spot-scripts](https://github.com/voltrxyz/spot-scripts) | Jupiter Swap/Lend strategy init |
+| [ranger-finance/client-raydium-clmm-scripts](https://github.com/voltrxyz/client-raydium-clmm-scripts) | Raydium CLMM strategy init |
+| [ranger-finance/trustful-scripts](https://github.com/voltrxyz/trustful-scripts) | Trustful adaptor strategy init |
+| [ranger-finance/rebalance-bot-template](https://github.com/voltrxyz/rebalance-bot-template) | Production-ready rebalance bot (equal-weight allocation) |
 
 ## Rebalance Bot Template
 
-The [rebalance-bot-template](https://github.com/ranger-finance/rebalance-bot-template) is a production-ready bot that handles the core automation tasks listed above. It distributes funds equally across lending strategies on a fixed schedule and includes:
+The [rebalance-bot-template](https://github.com/voltrxyz/rebalance-bot-template) is a production-ready bot that handles the core automation tasks listed above. It distributes funds equally across lending strategies on a fixed schedule and includes:
 
 - **Rebalance loop** — equal-weight allocation across all strategies, triggered on interval and on new deposits
 - **Refresh loop** — keeps on-chain receipt values up to date
@@ -43,14 +43,14 @@ The [rebalance-bot-template](https://github.com/ranger-finance/rebalance-bot-tem
 Supports Drift, Jupiter Lend, Kamino Market, and Kamino Vault strategies out of the box.
 
 ```bash
-git clone https://github.com/ranger-finance/rebalance-bot-template.git
+git clone https://github.com/voltrxyz/rebalance-bot-template.git
 cd rebalance-bot-template
 pnpm install
 cp .env.example .env   # fill in your vault addresses and keypair
 pnpm run build && pnpm start
 ```
 
-See the [repository README](https://github.com/ranger-finance/rebalance-bot-template#readme) for full configuration options and Replit deployment instructions.
+See the [repository README](https://github.com/voltrxyz/rebalance-bot-template#readme) for full configuration options and Replit deployment instructions.
 
 ## Script Structure Example
 
