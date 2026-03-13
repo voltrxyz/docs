@@ -11,278 +11,211 @@ Every adaptor must implement these three core instructions:
 
 ### 1. Initialize Instruction
 
+The vault calls this when a strategy is first created. Your adaptor should set up any protocol-specific accounts needed.
+
+The vault passes these accounts in order: `payer`, `vault_strategy_auth` (signer), `strategy`, `system_program`, followed by any remaining accounts.
+
 ```rust
+#[derive(Accounts)]
 pub struct Initialize<'info> {
-    /// The payer for account creation
     #[account(mut)]
     pub payer: Signer<'info>,
 
-    /// Vault's strategy authority
     #[account(mut)]
-    pub vault_strategy_auth: Signer<'info>,
+    pub authority: Signer<'info>,
 
-    /// The strategy account
-    #[account(
-        seeds = [constants::STRATEGY_SEED, strategy.load()?.counterparty_asset_ta.key().as_ref()],
-        bump = strategy.load()?.bump
-    )]
-    pub strategy: AccountLoader<'info, Strategy>,
+    /// The strategy account — must match your protocol's state account
+    /// CHECK: check in CPI call
+    #[account(constraint = strategy.key() == market.key())]
+    pub strategy: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 
-    /// The protocol's program ID
-    /// CHECK: Validated in handler
-    #[account(constraint = protocol_program.key() == strategy.load()?.protocol_program)]
-    pub protocol_program: AccountInfo<'info>,
+    // Protocol-specific accounts below...
 }
 ```
 
 Key responsibilities:
 
-- Create protocol-specific accounts
-- Initialize state tracking
-- Setup token accounts if needed
+- Create protocol-specific accounts (e.g. market state, token mints)
+- Initialize token accounts (e.g. receipt token ATAs)
 - Configure protocol-specific parameters
 
 ### 2. Deposit Instruction
 
+The vault calls this after transferring tokens from idle to the `vault_strategy_asset_ata`. Your adaptor must deploy those tokens into your protocol and **return the current position value as `u64`**.
+
+The vault passes these accounts in order: `vault_strategy_auth` (signer), `strategy`, `vault_asset_mint`, `vault_strategy_asset_ata`, `asset_token_program`, followed by any remaining accounts.
+
 ```rust
+#[derive(Accounts)]
 pub struct Deposit<'info> {
-    /// Strategy authority
     #[account(mut)]
-    pub vault_strategy_auth: Signer<'info>,
+    pub user: Signer<'info>,
 
-    /// Strategy account
-    #[account(
-        seeds = [constants::STRATEGY_SEED, counterparty_asset_ta.key().as_ref()],
-        bump = strategy.load()?.bump
-    )]
-    pub strategy: AccountLoader<'info, Strategy>,
+    /// CHECK: must match protocol state
+    #[account(constraint = strategy.key() == market.key())]
+    pub strategy: AccountInfo<'info>,
 
-    /// Asset mint
     #[account(mut)]
-    pub vault_asset_mint: Box<InterfaceAccount<'info, Mint>>,
+    pub token_mint: Box<InterfaceAccount<'info, Mint>>,
 
-    /// Strategy's asset ATA
-    #[account(
-        mut,
-        associated_token::mint = vault_asset_mint,
-        associated_token::authority = vault_strategy_auth,
-        associated_token::token_program = asset_token_program,
-    )]
-    pub vault_strategy_asset_ata: Box<InterfaceAccount<'info, TokenAccount>>,
-
-    pub asset_token_program: Interface<'info, TokenInterface>,
-
-    /// Protocol's token account
+    /// The vault_strategy_asset_ata — holds tokens to be deposited
     #[account(mut)]
-    pub counterparty_asset_ta: Box<InterfaceAccount<'info, TokenAccount>>,
+    pub user_token_ata: AccountInfo<'info>,
 
-    /// Protocol program
-    /// CHECK: Validated in handler
-    #[account(constraint = protocol_program.key() == strategy.load()?.protocol_program)]
-    pub protocol_program: AccountInfo<'info>,
+    pub token_program: Interface<'info, TokenInterface>,
+
+    // Protocol-specific accounts below...
+}
+
+pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<u64> {
+    if amount > 0 {
+        // CPI to your protocol to deposit tokens
+        your_protocol::cpi::deposit(..., amount)?;
+
+        // Reload accounts to reflect updated state
+        ctx.accounts.reload_protocol_state()?;
+    }
+
+    // Return the total position value in underlying token terms
+    let position_value = calculate_position_value(&ctx)?;
+    Ok(position_value)
 }
 ```
 
-Required functionality:
-
-- Validate deposit amount
-- Handle token transfers
-- Interact with protocol
-- Track position value
-- Return final position amount
+The returned `u64` is critical — the vault uses it to track the strategy's position value and calculate P&L.
 
 ### 3. Withdraw Instruction
 
+The vault calls this with the amount of underlying tokens to withdraw. Your adaptor must convert this to the protocol's units (e.g. receipt tokens), execute the withdrawal, and **return the remaining position value as `u64`**.
+
+The vault passes the same account order as deposit: `vault_strategy_auth` (signer), `strategy`, `vault_asset_mint`, `vault_strategy_asset_ata`, `asset_token_program`, followed by remaining accounts.
+
 ```rust
-pub struct Withdraw<'info> {
-    /// Strategy authority
-    #[account(mut)]
-    pub vault_strategy_auth: Signer<'info>,
+pub fn withdraw(ctx: Context<Withdraw>, amount: u64) -> Result<u64> {
+    // Convert the requested liquidity amount to protocol units
+    let protocol_amount = convert_to_protocol_units(&ctx, amount)?;
 
-    /// Strategy account
-    #[account(
-        seeds = [constants::STRATEGY_SEED, counterparty_asset_ta.key().as_ref()],
-        bump = strategy.load()?.bump
-    )]
-    pub strategy: AccountLoader<'info, Strategy>,
+    // CPI to your protocol to withdraw
+    your_protocol::cpi::withdraw(..., protocol_amount)?;
 
-    /// Asset mint
-    #[account(mut)]
-    pub vault_asset_mint: Box<InterfaceAccount<'info, Mint>>,
+    // Reload accounts
+    ctx.accounts.reload_protocol_state()?;
 
-    /// Strategy's asset ATA
-    #[account(
-        mut,
-        associated_token::mint = vault_asset_mint,
-        associated_token::authority = vault_strategy_auth,
-        associated_token::token_program = asset_token_program,
-    )]
-    pub vault_strategy_asset_ata: Box<InterfaceAccount<'info, TokenAccount>>,
-
-    pub asset_token_program: Interface<'info, TokenInterface>,
-
-    /// CHECK: Validated in handler
-    #[account(mut)]
-    pub counterparty_asset_ta_auth: AccountInfo<'info>,
-
-    #[account(mut)]
-    pub counterparty_asset_ta: Box<InterfaceAccount<'info, TokenAccount>>,
-
-    /// CHECK: Validated in handler
-    #[account(constraint = protocol_program.key() == strategy.load()?.protocol_program)]
-    pub protocol_program: AccountInfo<'info>,
+    // Return the remaining position value in underlying token terms
+    let remaining_value = calculate_position_value(&ctx)?;
+    Ok(remaining_value)
 }
 ```
 
-Required functionality:
-
-- Validate withdrawal amount
-- Handle protocol withdrawal
-- Transfer tokens back to vault
-- Update position tracking
-- Return final position amount
-
-## State Management
-
-### Strategy Account
-
-```rust
-#[account(zero_copy(unsafe))]
-#[repr(C)]
-pub struct Strategy {
-    pub name: [u8; 32],
-    pub description: [u8; 64],
-    pub counterparty_asset_ta: Pubkey,
-    pub protocol_program: Pubkey,
-    pub version: u8,
-    pub bump: u8,
-    pub strategy_type: StrategyType,
-    pub _reserved: [u8; 128],
-}
-```
-
-### Strategy Type Definition
-
-```rust
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum StrategyType {
-    Solend,
-    Drift,
-    Marginfi,
-    Kamino,
-    // Add your protocol type here
-}
-```
+After the CPI returns, the vault sweeps any tokens in `vault_strategy_asset_ata` back to idle.
 
 ## Position Value Calculation
 
-Your adaptor must implement accurate position value calculations:
+Your adaptor must accurately calculate the position value in underlying token terms. This is the `u64` returned by deposit and withdraw. Common patterns:
 
 ```rust
-fn calculate_current_amount(
-    collateral_amount: u64,
-    reserve_info: &AccountInfo
-) -> Result<u64> {
-    // Protocol-specific calculation logic
-    // Must handle:
-    // 1. Token decimals
-    // 2. Exchange rates
-    // 3. Accrued interest/rewards
-    // 4. Protocol-specific factors
+// Receipt-token based (e.g. cToken, collateral token)
+fn calculate_position_value(
+    receipt_token_balance: u64,
+    total_liquidity: u64,
+    total_receipt_supply: u64,
+) -> u64 {
+    (receipt_token_balance as u128)
+        .checked_mul(total_liquidity as u128)
+        .unwrap()
+        .checked_div(total_receipt_supply as u128)
+        .unwrap() as u64
+}
+
+// Shares-based (e.g. vault shares)
+fn calculate_position_value(
+    user_shares: u64,
+    total_aum: u64,
+    total_shares: u64,
+) -> u64 {
+    (user_shares as u128)
+        .checked_mul(total_aum as u128)
+        .unwrap()
+        .checked_div(total_shares as u128)
+        .unwrap() as u64
 }
 ```
 
+## Additional Instructions
+
+Adaptors are not limited to the three core instructions. Depending on your protocol, you may need:
+
+- **Multi-step withdrawals** — Some protocols (e.g. Drift vaults) require a request/withdraw flow. Add `request_withdraw` and `cancel_request_withdraw` instructions alongside the core `withdraw`.
+- **Reward harvesting** — Add `claim_rewards` or `harvest` instructions to collect yield, optionally swapping reward tokens back to the vault's base asset.
+- **Multiple strategy types** — A single adaptor can support multiple strategy types within the same protocol. For example, a Drift adaptor can handle vault depositor strategies, spot lending strategies, and curve strategies, each with different instruction sets and seed derivations.
+
+These extra instructions are called directly by the vault manager (not by the vault program) and can interact with the vault's `StrategyInitReceipt` for position tracking.
+
+## Remaining Accounts
+
+Protocol-specific accounts beyond the fixed ones are passed via `remaining_accounts`. Common uses:
+
+- Market/oracle data for equity calculations
+- Protocol state accounts needed for CPI calls
+- Additional token accounts for reward claiming or swaps
+
+Your adaptor receives these as `ctx.remaining_accounts` and can forward them to protocol CPIs or parse them for position calculations.
+
 ## Error Handling
+
+Define protocol-specific errors for your adaptor:
 
 ```rust
 #[error_code]
 pub enum AdaptorError {
     #[msg("Invalid amount provided.")]
     InvalidAmount,
-    #[msg("Invalid account owner.")]
-    InvalidAccountOwner,
-    #[msg("Already initialized.")]
-    AlreadyInitialized,
-    #[msg("Invalid token mint.")]
-    InvalidTokenMint,
-    #[msg("Invalid account input.")]
-    InvalidAccountInput,
-    #[msg("Invalid reserve account.")]
-    InvalidReserveAccount,
-    #[msg("Not rent exempt.")]
-    NotRentExempt,
     #[msg("Math overflow.")]
     MathOverflow,
-    // Add protocol-specific errors
+    // Add protocol-specific errors as needed
 }
 ```
 
 ## Account Validation Patterns
 
-### Token Account Validation
+### PDA Verification
+
+Verify protocol accounts using seeds constraints:
 
 ```rust
-fn validate_token_accounts(
-    vault_asset_mint: &Pubkey,
-    strategy_ata: &Pubkey,
-    vault_strategy_auth: &Pubkey
-) -> Result<()> {
-    require!(
-        reserve_liquidity_mint == vault_asset_mint.key(),
-        AdaptorError::InvalidReserveAccount
-    );
-
-    require!(
-        get_associated_token_address_with_program_id(
-            vault_strategy_auth,
-            vault_asset_mint,
-            &TOKEN_PROGRAM_ID
-        ) == *strategy_ata,
-        AdaptorError::InvalidAccountInput
-    );
-
-    Ok(())
-}
+#[account(
+    mut,
+    seeds = [MARKET_SEED, token_mint.key().as_ref()],
+    bump,
+    seeds::program = protocol_program.key()
+)]
+pub market: Account<'info, Market>,
 ```
 
-### Protocol Account Validation
+### ATA Verification
+
+Validate associated token accounts:
 
 ```rust
-fn validate_protocol_accounts(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo]
-) -> Result<()> {
-    require!(
-        protocol_program.key() == strategy.load()?.protocol_program,
-        AdaptorError::InvalidProtocolProgram
-    );
-
-    require!(
-        account.owner == program_id,
-        AdaptorError::InvalidAccountOwner
-    );
-
-    Ok(())
-}
+#[account(
+    mut,
+    associated_token::mint = ctoken_mint,
+    associated_token::authority = user,
+    associated_token::token_program = ctoken_token_program,
+)]
+pub user_ctoken_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 ```
 
 ## Implementation Checklist
 
-- [ ] Implemented all required instructions (Initialize, Deposit, Withdraw)
-- [ ] Added proper account validation
-- [ ] Implemented accurate position tracking
-- [ ] Added comprehensive error handling
-- [ ] Handled token decimals correctly
-- [ ] Added protocol-specific security checks
-- [ ] Tested all error cases
-- [ ] Validated token account handling
-- [ ] Added protocol-specific cleanup logic
-
-## Security Requirements
-
-1. **Account Validation**: Always validate account ownership, check PDA derivation, verify token account authorities, validate protocol accounts
-2. **Amount Validation**: Use checked math operations, handle decimal conversions safely, validate against protocol limits, check for overflows
-3. **State Updates**: Update position values atomically, maintain consistent state, handle failed transactions, track version numbers
+- [ ] Implemented core three instructions (Initialize, Deposit, Withdraw)
+- [ ] Deposit and Withdraw return accurate `u64` position values
+- [ ] Strategy account correctly maps to protocol state
+- [ ] Protocol-specific accounts validated (PDAs, ATAs, ownership)
+- [ ] Used checked math operations for all arithmetic
+- [ ] Handled token decimal conversions correctly
+- [ ] Added any protocol-specific instructions (multi-step withdrawals, reward harvesting, etc.)
+- [ ] Remaining accounts correctly parsed and forwarded where needed
+- [ ] Tested deposit, withdraw, and edge cases (zero amount, first deposit)

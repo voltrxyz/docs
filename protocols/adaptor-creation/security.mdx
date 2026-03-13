@@ -7,253 +7,177 @@ This guide outlines critical security considerations and best practices when dev
 
 ## Account Security
 
-### 1. Authority Validation
+### 1. Strategy Mapping Validation
+
+Always validate that the `strategy` account passed by the vault matches your protocol's expected state account:
 
 ```rust
-// Always validate authorities and signers
-require!(
-    ctx.accounts.vault_strategy_auth.key() == expected_auth,
-    AdaptorError::InvalidAccountOwner
-);
-
-// Verify protocol program ownership
-require!(
-    ctx.accounts.protocol_program.key() == strategy.protocol_program,
-    AdaptorError::InvalidProtocolProgram
-);
+#[account(constraint = strategy.key() == market.key())]
+pub strategy: AccountInfo<'info>,
 ```
 
-Key areas to validate:
+### 2. PDA Derivation Security
 
-- Strategy authority signatures
-- Protocol program ownership
-- Token account authorities
-- Account derivation paths
-- PDA validation
-
-### 2. Token Account Safety
+Verify protocol accounts using seeds to prevent spoofed accounts:
 
 ```rust
-fn validate_token_accounts(
-    reserve_info: &AccountInfo,
-    vault_asset_mint: Pubkey,
-    reserve_collateral_mint_account: Pubkey,
-    user_destination_collateral: Pubkey,
-    vault_strategy_auth: Pubkey,
-    collateral_token_program: Pubkey
-) -> Result<()> {
-    require!(
-        reserve_liquidity_mint == vault_asset_mint.key(),
-        AdaptorError::InvalidReserveAccount
-    );
-
-    require!(
-        get_associated_token_address_with_program_id(
-            &vault_strategy_auth.key(),
-            &reserve_collateral_mint_account.key(),
-            &collateral_token_program.key()
-        ) == user_destination_collateral.key(),
-        AdaptorError::InvalidAccountInput
-    );
-
-    Ok(())
-}
-```
-
-### 3. PDA Derivation Security
-
-```rust
-[strategy] = PublicKey.findProgramAddressSync(
-    [SEEDS.STRATEGY, counterparty_asset_ta.key().as_ref()],
-    DEFAULT_ADAPTOR_PROGRAM_ID
-);
+#[account(
+    mut,
+    seeds = [MARKET_SEED, token_mint.key().as_ref()],
+    bump,
+    seeds::program = protocol_program.key()
+)]
+pub market: Account<'info, Market>,
 
 #[account(
-    seeds = [constants::STRATEGY_SEED, strategy.load()?.counterparty_asset_ta.key().as_ref()],
-    bump = strategy.load()?.bump
+    mut,
+    seeds = [CTOKEN_MINT_SEED, token_mint.key().as_ref()],
+    bump,
+    seeds::program = protocol_program.key()
 )]
-pub strategy: AccountLoader<'info, Strategy>,
+pub ctoken_mint: AccountInfo<'info>,
 ```
 
-Key considerations: Use consistent seed ordering, store and validate bumps, check PDA ownership, verify seed values, validate authority PDAs.
+Key considerations: Use consistent seed ordering, verify seeds against the correct program, validate bump values.
 
-## State Management Security
+### 3. Token Account Safety
 
-### Position Value Tracking
+Validate token account ownership and associations:
 
 ```rust
-fn calculate_current_amount(
-    collateral_amount: u64,
-    reserve_info: &AccountInfo
-) -> Result<u64> {
-    let total_liquidity = available_amount
-        .checked_add(borrowed_amount)
-        .ok_or(AdaptorError::MathOverflow)?;
-
-    let liquidity_amount = (collateral_amount as u128)
-        .checked_mul(total_liquidity)
-        .ok_or(AdaptorError::MathOverflow)?
-        .checked_div(total_supply)
-        .ok_or(AdaptorError::MathOverflow)? as u64;
-
-    Ok(liquidity_amount)
-}
+#[account(
+    mut,
+    associated_token::mint = ctoken_mint,
+    associated_token::authority = user,
+    associated_token::token_program = ctoken_token_program,
+)]
+pub user_ctoken_ata: Box<InterfaceAccount<'info, TokenAccount>>,
 ```
 
-### State Updates
+## Position Value Accuracy
+
+### Accurate Return Values
+
+The vault relies on the `u64` returned by deposit and withdraw to track strategy positions and compute P&L. Inaccurate values can lead to incorrect fee calculations or accounting errors.
 
 ```rust
-impl Strategy {
-    pub fn update_position(&mut self, value: u64) -> Result<()> {
-        require!(value >= 0, AdaptorError::InvalidAmount);
-        self.position_value = value;
-        self.last_updated_ts = Clock::get()?.unix_timestamp;
-        Ok(())
+// Always reload accounts after CPI calls before computing position value
+ctx.accounts.user_ctoken_ata.reload()?;
+ctx.accounts.market.reload()?;
+
+let position_value = ctx
+    .accounts
+    .market
+    .ctoken_to_liquidity(ctx.accounts.user_ctoken_ata.amount);
+Ok(position_value)
+```
+
+### Handling Edge Cases
+
+```rust
+// Handle first deposit (zero supply)
+fn liquidity_to_ctoken(&self, liquidity_amount: u64) -> u64 {
+    if self.liquidity_deposited == 0 {
+        return liquidity_amount;
     }
+    // Normal exchange rate calculation
+    (liquidity_amount as u128)
+        .checked_mul(self.ctokens_minted as u128)
+        .unwrap()
+        .checked_div(self.liquidity_deposited as u128)
+        .unwrap() as u64
 }
 ```
 
-## Protocol Integration Security
+## CPI Safety
 
-### CPI Safety
+### Delegate Validation to the Target Program
+
+When your adaptor is a CPI wrapper, the target protocol program validates its own accounts. Use `/// CHECK: check in CPI call` to document this delegation:
 
 ```rust
-fn perform_protocol_operation(
-    ctx: Context,
-    args: ProtocolArgs
-) -> Result<()> {
-    validate_protocol_accounts(ctx.remaining_accounts)?;
-
-    let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.protocol_program.to_account_info(),
-        protocol_accounts,
-        &[&authority_seeds]
-    );
-
-    protocol::cpi::operation(cpi_ctx, args)?;
-
-    Ok(())
-}
+/// CHECK: check in CPI call
+#[account(mut)]
+pub market_liquidity_ata: AccountInfo<'info>,
 ```
 
-### Protocol State Validation
+### CPI Context Construction
+
+Build CPI contexts carefully, mapping adaptor accounts to the target program's expected structure:
 
 ```rust
-fn validate_protocol_state(
-    protocol_account: &AccountInfo,
-    expected_state: ProtocolState
-) -> Result<()> {
-    let state = ProtocolState::try_from_slice(&protocol_account.data.borrow())?;
-
-    require!(
-        state.is_valid_for_operation(),
-        AdaptorError::InvalidProtocolState
-    );
-
-    validate_protocol_constraints(&state)?;
-
-    Ok(())
-}
+ctoken_market_program::cpi::deposit_market(
+    CpiContext::new(
+        ctx.accounts.ctoken_market_program.to_account_info(),
+        ctoken_market_program::cpi::accounts::DepositOrWithdraw {
+            user: ctx.accounts.user.to_account_info(),
+            market: ctx.accounts.market.to_account_info(),
+            liquidity_mint: ctx.accounts.token_mint.to_account_info(),
+            // ... map all required accounts
+        },
+    ),
+    amount,
+)?;
 ```
 
-## Error Handling
+## Arithmetic Safety
 
-### Comprehensive Error Types
+### Use Checked Math
+
+All arithmetic must use checked operations to prevent overflows:
 
 ```rust
-#[error_code]
-pub enum AdaptorError {
-    #[msg("Invalid amount provided.")]
-    InvalidAmount,
-    #[msg("Invalid account owner.")]
-    InvalidAccountOwner,
-    #[msg("Invalid token mint.")]
-    InvalidTokenMint,
-    #[msg("Math overflow.")]
-    MathOverflow,
-    #[msg("Invalid protocol state.")]
-    InvalidProtocolState,
-    #[msg("Protocol constraint violated.")]
-    ProtocolConstraintViolation,
-}
+let ctoken_amount = amount
+    .checked_mul(ctx.accounts.user_ctoken_ata.amount)
+    .ok_or(AdaptorError::MathOverflow)?
+    .checked_div(authority_holdings)
+    .ok_or(AdaptorError::MathOverflow)?;
 ```
 
-### Input Validation
+### Use u128 for Intermediate Calculations
+
+Prevent overflow in multiplication before division:
 
 ```rust
-fn validate_operation_inputs(
-    amount: u64,
-    args: &OperationArgs
-) -> Result<()> {
-    require!(amount > 0, AdaptorError::InvalidAmount);
-    require!(amount <= max_amount, AdaptorError::InvalidAmount);
-
-    if let Some(args) = args {
-        validate_args(args)?;
-    }
-
-    Ok(())
-}
-```
-
-## Operational Security
-
-### Transaction Atomicity
-
-```rust
-pub fn handle_protocol_operation(ctx: Context) -> Result<()> {
-    let pre_state = validate_pre_state(ctx)?;
-    protocol_operation(ctx)?;
-    validate_post_state(ctx, pre_state)?;
-    Ok(())
-}
-```
-
-### Upgrade Safety
-
-```rust
-#[account(zero_copy(unsafe))]
-pub struct Strategy {
-    pub version: u8,
-    pub _reserved: [u8; 64],
-}
+let result = (value_a as u128)
+    .checked_mul(value_b as u128)
+    .unwrap()
+    .checked_div(value_c as u128)
+    .unwrap() as u64;
 ```
 
 ## Testing Requirements
 
-1. **Security Tests**: Authority validation, account validation, state consistency, error handling, edge cases
-2. **Integration Tests**: Protocol interactions, state transitions, error conditions, upgrade paths, multi-instruction scenarios
-3. **Fuzzing Tests**: Input validation, state mutations, account combinations, error conditions, protocol interactions
+1. **Core Flow Tests**: Deposit, withdraw, and initialize with valid inputs
+2. **Edge Cases**: First deposit (zero supply), full withdrawal, zero-amount operations
+3. **Position Value Tests**: Verify returned `u64` values match expected position values after operations
+4. **Integration Tests**: End-to-end tests with the vault program calling your adaptor
+5. **Error Cases**: Invalid accounts, overflow scenarios, unauthorized access
 
 ## Security Checklist
 
 <AccordionGroup>
   <Accordion title="Account Security">
-    - [ ] All account owners validated
-    - [ ] PDA derivation verified
-    - [ ] Token accounts validated
-    - [ ] Authority checks implemented
-    - [ ] Account constraints enforced
+    - [ ] Strategy account mapping validated
+    - [ ] PDA derivation verified with correct seeds and program
+    - [ ] Token accounts validated (mint, authority, token program)
+    - [ ] Signer constraints enforced
   </Accordion>
-  <Accordion title="State Management">
-    - [ ] Atomic updates implemented
-    - [ ] Position tracking accurate
-    - [ ] State consistency maintained
-    - [ ] Version handling added
-    - [ ] Upgrade path defined
+  <Accordion title="Position Value">
+    - [ ] Accounts reloaded after CPI calls before computing position value
+    - [ ] First-deposit edge case handled (zero supply)
+    - [ ] Exchange rate calculation uses u128 intermediates
+    - [ ] Returned u64 accurately represents position in underlying token terms
   </Accordion>
-  <Accordion title="Protocol Integration">
-    - [ ] CPI safety implemented
-    - [ ] Protocol state validated
-    - [ ] Error handling complete
-    - [ ] Return values checked
-    - [ ] Protocol constraints enforced
+  <Accordion title="CPI Safety">
+    - [ ] CPI accounts correctly mapped to target program
+    - [ ] CHECK comments document which program validates each unchecked account
+    - [ ] All CPI return values checked
   </Accordion>
   <Accordion title="Testing">
-    - [ ] Security tests complete
-    - [ ] Integration tests passed
-    - [ ] Fuzzing performed
+    - [ ] Core flow tests passed
     - [ ] Edge cases covered
-    - [ ] Upgrade tested
+    - [ ] Integration tests with vault program
+    - [ ] Error scenarios tested
   </Accordion>
 </AccordionGroup>
