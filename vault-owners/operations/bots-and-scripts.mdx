@@ -19,14 +19,14 @@ Voltr does not provide managed bot hosting. You are responsible for deployment, 
 | Position monitoring | Strategy-specific health can degrade without alerts |
 | Fee harvesting | Accumulated fees should be collected periodically |
 
-## Script Repositories
+## Where The Building Blocks Live
 
-| Repository | Use Case |
-|---|---|
-| `voltr-kamino-scripts` | Kamino strategy init, allocation, reward claiming |
-| `voltr-spot-scripts` | Jupiter spot and lend strategy flows |
-| `voltr-trustful-scripts` | Trustful adaptor strategy flows |
-| other maintained repos | adaptor-specific workflows |
+Every operation your automation needs — strategy init, allocation, reward claiming, fee harvesting — ships in one repository, [`sdk-scripts`](https://github.com/voltrxyz/sdk-scripts). You can drive it two ways:
+
+- **Shell out to the CLI** (`pnpm cli -- <group>:<action> --mode execute`) from a cron job or scheduler — the simplest path for periodic rebalancing and claims. See [CLI & Scripts](/vault-owners/operations/cli-and-scripts).
+- **Import the operation builders** into a long-running service or bot. The [`examples/`](https://github.com/voltrxyz/sdk-scripts/tree/main/examples) directory has one runnable file per action showing how to build a `BuiltOperation` and route it through the shared transaction processor.
+
+For lower-level reads and custom instruction building, the underlying [`@voltr/vault-sdk`](/developers/sdk-reference) is also available directly — the shape below uses it.
 
 ## Basic Script Shape
 

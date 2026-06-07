@@ -5,6 +5,10 @@ description: Add adaptors and initialize strategies for your vault
 
 Vault owners can attach lending, spot, Kamino, Drift, and trustful-style strategies through adaptor programs.
 
+<Info>
+**Managers:** the [`sdk-scripts` CLI](/vault-owners/operations/cli-and-scripts) does this with `vault:add-adaptor` followed by a per-integration `*:init` command (e.g. `kamino:market:init`, `spot:earn:init`) — it derives the strategy, discriminator, and accounts for you. This page shows the programmatic SDK path for embedding strategy setup in your own code.
+</Info>
+
 ## Setup
 
 The v2 SDK uses direct instruction builders:

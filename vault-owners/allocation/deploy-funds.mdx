@@ -59,13 +59,20 @@ const withdrawIx = await getWithdrawStrategyInstructionAsync({
 - ATAs created for strategy operations are usually a one-time manager-paid rent cost.
 - The manager should keep some idle vault liquidity for withdrawals.
 - Batch ATA setup and allocation instructions when possible.
-- Use the maintained adaptor repos for the exact account wiring.
+- Let the CLI handle the exact account wiring (see below).
 
-## Protocol Repositories
+## Allocate From The CLI
 
-| Protocol / Adaptor | Example Repos |
-|---|---|
-| Kamino | `voltr-kamino-scripts` |
-| Jupiter spot and lend | `voltr-spot-scripts` |
-| Trustful | `voltr-trustful-scripts` |
-| Drift and other adaptors | corresponding maintained script repo |
+The [`sdk-scripts`](https://github.com/voltrxyz/sdk-scripts) CLI builds both the generic Voltr side and the protocol-specific accounts from your vault profile. Each `deposit`/`withdraw` moves funds between the vault and one strategy:
+
+```bash
+# Kamino lending market / vault (manager):
+pnpm cli -- --profile configs/my-vault.json --mode execute kamino:market:deposit  --amount 1000000
+pnpm cli -- --profile configs/my-vault.json --mode execute kamino:kvault:withdraw --amount 500000
+
+# Jupiter Earn (manager):
+pnpm cli -- --profile configs/my-vault.json --mode execute spot:earn:deposit  --amount 1000000
+pnpm cli -- --profile configs/my-vault.json --mode execute spot:earn:withdraw --amount 500000
+```
+
+Always preview with `--mode print` then `--mode simulate` before `--mode execute`. See [CLI & Scripts](/vault-owners/operations/cli-and-scripts) for the full command surface, and the programmatic [examples](https://github.com/voltrxyz/sdk-scripts/tree/main/examples) to build these instructions in your own code.

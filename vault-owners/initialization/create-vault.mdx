@@ -4,10 +4,10 @@ description: Create and initialize a new vault using the Voltr SDK
 ---
 
 <Info>
-You can also create a vault without code at [voltr.xyz/create](https://voltr.xyz/create). See [Quick Start (UI)](/vault-owners/initialization/via-ui).
+You can also create a vault without code at [voltr.xyz/create](https://voltr.xyz/create) (see [Quick Start (UI)](/vault-owners/initialization/via-ui)), or in one command with the [`sdk-scripts` CLI](/vault-owners/operations/cli-and-scripts): `pnpm cli -- --profile configs/my-vault.json --mode execute vault:init --manager <MANAGER_PUBKEY> --name "My USDC Vault" --max-cap 100000000000`.
 </Info>
 
-The current SDK flow is based on `@solana/kit` plus direct instruction builders.
+The page below shows the lower-level SDK flow, based on `@solana/kit` plus direct instruction builders. Use it when you embed vault creation in your own code; otherwise the CLI is the quickest path.
 
 ## Setup
 
