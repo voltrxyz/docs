@@ -5,6 +5,10 @@ description: Update vault parameters after creation
 
 After creating a vault, the **admin** can update several configuration parameters such as fees, cap, withdrawal settings, and manager authority.
 
+<Info>
+**Managers:** the [`sdk-scripts` CLI](/vault-owners/operations/cli-and-scripts) updates one field per call with `vault:update-config` and handles the extra-account wiring for you. This page shows the programmatic SDK path for embedding config updates in your own code.
+</Info>
+
 ## What Can Be Updated
 
 | Parameter | Updatable | Updated By |
@@ -84,7 +88,7 @@ For `ManagerManagementFee` and `AdminManagementFee`, append the vault LP mint ac
 const [vaultLpMint] = await findVaultLpMintPda({ vault });
 ```
 
-The maintained `admin-update-vault-config.ts` scripts show the exact extra-account pattern used in production.
+The `vault:update-config` command in the [`sdk-scripts`](https://github.com/voltrxyz/sdk-scripts) CLI handles this extra-account pattern for you — run it with `--mode print` to inspect the exact accounts before executing. See [CLI & Scripts](/vault-owners/operations/cli-and-scripts).
 
 ### Update Manager
 

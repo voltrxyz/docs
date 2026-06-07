@@ -68,7 +68,8 @@
             "pages": [
               "explore/security",
               "explore/github",
-              "explore/api-docs"
+              "explore/api-docs",
+              "explore/agent-skill"
             ]
           }
         ]
@@ -112,6 +113,7 @@
             "icon": "gears",
             "pages": [
               "vault-owners/operations/overview",
+              "vault-owners/operations/cli-and-scripts",
               "vault-owners/operations/bots-and-scripts",
               "vault-owners/operations/monitoring",
               "vault-owners/fees-and-accounting"

@@ -1,0 +1,60 @@
+---
+title: AI Agent Skill
+description: A Claude Agent Skill that equips coding agents to build on Voltr across every audience
+---
+
+The [**Voltr Agent Skill**](https://github.com/voltrxyz/voltr-skill) is an [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) that teaches a coding agent (such as Claude Code) how to build on Voltr. Install it once and your agent can scaffold vaults, deposit/withdraw flows, custom adaptors, and CPI integrations — grounded in the official docs and the on-chain programs instead of guessing.
+
+<Info>
+The Skill activates automatically when a task matches its triggers — Voltr vaults, `@voltr/vault-sdk`, `sdk-scripts`, adaptors, CPI into the vault program, and related terms.
+</Info>
+
+## Install
+
+Copy or symlink the repo into your agent's skills location. For Claude Code:
+
+```bash
+git clone https://github.com/voltrxyz/voltr-skill.git
+
+# project-level (this repo only):
+mkdir -p .claude/skills && cp -r voltr-skill .claude/skills/voltr
+
+# …or user-level (all your projects):
+cp -r voltr-skill ~/.claude/skills/voltr
+```
+
+## What's inside
+
+The Skill uses progressive disclosure: the agent loads `SKILL.md` first for orientation and a track picker, then pulls in only the dense reference and runnable example it needs for the task at hand.
+
+| You are… | Goal | Reference | Runnable code |
+|---|---|---|---|
+| **Vault manager** | Create, configure, allocate, and operate a vault | `vault-manager-cli.md` (recommended) · `vault-manager-sdk.md` | `examples/sdk/` |
+| **Depositor / app dev** | Deposit & withdraw for users (frontend, bot, service) | `depositor-and-api.md` | `examples/depositor/` |
+| **Yield protocol** | Build a custom on-chain adaptor bridging a vault to your protocol | `adaptor-creation.md` | `examples/adaptor/` |
+| **Composing protocol** | CPI into the vault program from your own program | `cpi-integration.md` | `examples/cpi/` |
+
+A shared [`architecture.md`](https://github.com/voltrxyz/voltr-skill/blob/main/references/architecture.md) reference underpins all four tracks: programs, fund flow, roles, accounting (LP / asset-per-LP / locked profit / high water mark / fees), PDAs, deployed addresses, and the instruction and error lists.
+
+## How it relates to these docs
+
+The Skill is grounded in this documentation and the same tooling it describes — it is a way to *build* with an AI agent, not a replacement for the references here:
+
+<CardGroup cols={2}>
+  <Card title="CLI & Scripts" icon="terminal" href="/vault-owners/operations/cli-and-scripts">
+    The `sdk-scripts` CLI and examples the manager track builds on
+  </Card>
+  <Card title="SDK Reference" icon="book" href="/developers/sdk-reference">
+    The `@voltr/vault-sdk` v2 surface the Skill targets
+  </Card>
+  <Card title="Adaptor Creation" icon="puzzle-piece" href="/protocols/adaptor-creation/index">
+    The three-instruction adaptor interface for yield protocols
+  </Card>
+  <Card title="CPI Integration" icon="plug" href="/protocols/cpi-integration/index">
+    Composing protocols that CPI into the vault program
+  </Card>
+</CardGroup>
+
+<Note>
+The TypeScript surface targets **v2** (`@voltr/vault-sdk` + `@solana/kit`); the legacy `VoltrClient` (v1) API is out of scope except as a migration source. Always preview transactions (`print` → `simulate`) before executing on mainnet, and verify program addresses and discriminators against the Skill's `architecture.md` and `cpi-integration.md`.
+</Note>

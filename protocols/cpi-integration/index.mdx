@@ -9,6 +9,10 @@ This guide covers Cross-Program Invocation (CPI) integration with the Voltr Vaul
 **When to use CPI vs. the TypeScript SDK**: CPI is for on-chain programs that need to interact with Voltr vaults programmatically (e.g., a router or aggregator). If you are building off-chain automation or a frontend, use the [TypeScript SDK](https://voltrxyz.github.io/vault-sdk/) instead.
 </Info>
 
+<Tip>
+Building with a coding agent? The [Voltr Agent Skill](/explore/agent-skill) ships a `cpi-integration.md` reference with verified discriminators and drop-in Rust CPI wrappers for all five vault instructions in `examples/cpi/`.
+</Tip>
+
 ## How It Works
 
 Users deposit assets into a vault and receive LP tokens representing their share. Withdrawals follow a **two-step process** to ensure vault stability and manage liquidity:

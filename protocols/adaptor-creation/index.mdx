@@ -5,6 +5,10 @@ description: Build custom adaptors to bridge Voltr vaults with external DeFi pro
 
 An adaptor is a Solana program that bridges a Voltr vault with your DeFi protocol. The vault program calls your adaptor via CPI, and your adaptor routes those calls to your protocol.
 
+<Tip>
+Building with a coding agent? The [Voltr Agent Skill](/explore/agent-skill) ships an `adaptor-creation.md` reference and a complete minimal Anchor adaptor in `examples/adaptor/` to scaffold this for you.
+</Tip>
+
 ## How It Works
 
 When a vault manager allocates or deallocates funds, the vault program:

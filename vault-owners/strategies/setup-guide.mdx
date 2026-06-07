@@ -49,13 +49,21 @@ const initStrategyIx = await getInitializeStrategyInstructionAsync({
 });
 ```
 
-## Use The Script Repos As Source Of Truth
+## Do It From The CLI
 
-The exact `strategy`, discriminator, and remaining accounts are adaptor-specific. Use the maintained repositories for working examples:
+The exact `strategy`, discriminator, and remaining accounts are adaptor-specific. Rather than wiring them by hand, the [`sdk-scripts`](https://github.com/voltrxyz/sdk-scripts) CLI derives them for you from your vault profile. Add the adaptor once, then initialize each strategy:
 
-| Protocol / Adaptor | Initialization Repos |
-|---|---|
-| Kamino | `voltr-kamino-scripts` |
-| Jupiter spot and lend | `voltr-spot-scripts` |
-| Trustful | `voltr-trustful-scripts` |
-| Drift / other adaptors | corresponding maintained script repo |
+```bash
+# 1. Register the adaptor on the vault (admin). Defaults to Kamino; pass --adaptor-program for others.
+pnpm cli -- --profile configs/my-vault.json --mode execute vault:add-adaptor
+
+# 2. Initialize a strategy (manager). One command per integration:
+pnpm cli -- --profile configs/my-vault.json --mode execute kamino:market:init   # Kamino lending market
+pnpm cli -- --profile configs/my-vault.json --mode execute kamino:kvault:init   # Kamino vault
+pnpm cli -- --profile configs/my-vault.json --mode execute spot:swap:init       # Jupiter swap
+pnpm cli -- --profile configs/my-vault.json --mode execute spot:earn:init       # Jupiter Earn
+pnpm cli -- --profile configs/my-vault.json --mode execute trustful:arbitrary:init
+pnpm cli -- --profile configs/my-vault.json --mode execute trustful:curve:init
+```
+
+See [CLI & Scripts](/vault-owners/operations/cli-and-scripts) for profile setup and transaction modes, and [Supported Integrations](/vault-owners/strategies/integrations) for the full command surface. To build these instructions in your own code instead, the programmatic [examples](https://github.com/voltrxyz/sdk-scripts/tree/main/examples) have one file per `*-init` action.
