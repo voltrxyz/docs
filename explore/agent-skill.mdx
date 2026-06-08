@@ -3,25 +3,29 @@ title: AI Agent Skill
 description: A Claude Agent Skill that equips coding agents to build on Voltr across every audience
 ---
 
-The [**Voltr Agent Skill**](https://github.com/voltrxyz/voltr-skill) is an [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) that teaches a coding agent (such as Claude Code) how to build on Voltr. Install it once and your agent can scaffold vaults, deposit/withdraw flows, custom adaptors, and CPI integrations — grounded in the official docs and the on-chain programs instead of guessing.
+The [**Voltr Agent Skill**](https://github.com/voltrxyz/voltr-skill) is an [Agent Skill](https://docs.claude.com/en/docs/agents-and-tools/agent-skills) that teaches a coding agent — Claude Code, Codex, Cursor, and others — how to build on Voltr. Install it once and your agent can scaffold vaults, deposit/withdraw flows, custom adaptors, and CPI integrations — grounded in the official docs and the on-chain programs instead of guessing.
 
 <Info>
-The Skill activates automatically when a task matches its triggers — Voltr vaults, `@voltr/vault-sdk`, `sdk-scripts`, adaptors, CPI into the vault program, and related terms.
+The Skill activates **automatically** when a task matches its triggers — Voltr vaults, `@voltr/vault-sdk`, `sdk-scripts`, adaptors, CPI into the vault program, and related terms — or **explicitly** in Claude Code with `/voltr`.
 </Info>
 
 ## Install
 
-Copy or symlink the repo into your agent's skills location. For Claude Code:
+The quickest path uses the open [`skills`](https://github.com/vercel-labs/skills) CLI:
 
 ```bash
-git clone https://github.com/voltrxyz/voltr-skill.git
-
-# project-level (this repo only):
-mkdir -p .claude/skills && cp -r voltr-skill .claude/skills/voltr
-
-# …or user-level (all your projects):
-cp -r voltr-skill ~/.claude/skills/voltr
+npx skills add https://github.com/voltrxyz/voltr-skill
 ```
+
+Add `-a claude-code -g` to target a specific agent and install globally. Prefer no third-party CLI? Clone and run the bundled installer:
+
+```bash
+git clone https://github.com/voltrxyz/voltr-skill
+cd voltr-skill
+./install.sh            # ~/.claude/skills/voltr (default)
+```
+
+`install.sh` also targets other agents and formats — `--codex`, `--cursor`, `--windsurf`, `--cline`, `--continue`, `--agents-md`, plus `--all`, `--project`, and `--path` modifiers. Update an installed copy with `git -C ~/.claude/skills/voltr pull`.
 
 ## What's inside
 
@@ -34,7 +38,7 @@ The Skill uses progressive disclosure: the agent loads `SKILL.md` first for orie
 | **Yield protocol** | Build a custom on-chain adaptor bridging a vault to your protocol | `adaptor-creation.md` | `examples/adaptor/` |
 | **Composing protocol** | CPI into the vault program from your own program | `cpi-integration.md` | `examples/cpi/` |
 
-A shared [`architecture.md`](https://github.com/voltrxyz/voltr-skill/blob/main/references/architecture.md) reference underpins all four tracks: programs, fund flow, roles, accounting (LP / asset-per-LP / locked profit / high water mark / fees), PDAs, deployed addresses, and the instruction and error lists.
+A shared [`architecture.md`](https://github.com/voltrxyz/voltr-skill/blob/main/skills/voltr/references/architecture.md) reference underpins all four tracks: programs, fund flow, roles, accounting (LP / asset-per-LP / locked profit / high water mark / fees), PDAs, deployed addresses, and the instruction and error lists.
 
 ## How it relates to these docs
 
