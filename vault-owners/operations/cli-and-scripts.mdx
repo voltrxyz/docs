@@ -87,11 +87,12 @@ cp configs/examples/usdc.mainnet.example.json configs/my-vault.json
 
 ## Keypairs & roles
 
-Commands sign as one of three roles. Each resolves its keypair path from a flag, falling back to an environment variable — **the flag wins**. If neither is set, the command fails up front naming both.
+Commands sign as one of four roles. Each resolves its keypair path from a flag, falling back to an environment variable — **the flag wins**. If neither is set, the command fails up front naming both.
 
 | Role | Flag | Env var | Used by |
 |---|---|---|---|
 | `admin` | `--admin-keypair` | `ADMIN_KEYPAIR` | `vault:init*`, metadata, config, adaptor admin, harvest-fee |
+| `protocol admin` | `--admin-keypair` | `ADMIN_KEYPAIR` | protocol treasury/admin changes and per-vault adaptor-policy overrides |
 | `manager` | `--manager-keypair` | `MANAGER_KEYPAIR` | strategy operations (Kamino/Spot/Trustful, claims) |
 | `user` | `--user-keypair` | `USER_KEYPAIR` | deposit/withdraw, direct-withdraw |
 
@@ -158,6 +159,7 @@ pnpm cli -- vault:deposit --help   # flags for a single command
 |---|---|---|
 | **Vault (core)** | `vault:init`, `vault:init-and-set-token-metadata`, `vault:set-token-metadata`, `vault:update-config`, `vault:accept-admin`, `vault:harvest-fee`, `vault:deposit`, `vault:request-withdraw`, `vault:withdraw`, `vault:cancel-request-withdraw`, `vault:instant-withdraw`, `vault:query:position`, `vault:query:strategy-positions` | [operator-guide.md](https://github.com/voltrxyz/sdk-scripts/blob/main/docs/operator-guide.md) |
 | **Adaptor admin** | `vault:add-adaptor`, `vault:remove-adaptor`, `vault:init-direct-withdraw` | [adaptor-admin.md](https://github.com/voltrxyz/sdk-scripts/blob/main/docs/adaptor-admin.md) |
+| **Protocol admin** | `protocol:update-treasury`, `protocol:set-pending-admin`, `protocol:accept-admin`, `vault:update-adaptor-policy` | [adaptor-admin.md](https://github.com/voltrxyz/sdk-scripts/blob/main/docs/adaptor-admin.md) |
 | **Kamino** | `kamino:market:{init,deposit,withdraw,claim-reward}`, `kamino:kvault:{init,deposit,withdraw,claim-reward-with-index,direct-withdraw,request-and-direct-withdraw}` | [kamino.md](https://github.com/voltrxyz/sdk-scripts/blob/main/docs/kamino.md) |
 | **Spot** | `spot:swap:{init,buy,sell}`, `spot:earn:{init,extend-lut,deposit,withdraw,init-direct-withdraw}`, `spot:query:strategy-positions` | [spot.md](https://github.com/voltrxyz/sdk-scripts/blob/main/docs/spot.md) |
 | **Trustful** | `trustful:arbitrary:{init,deposit,withdraw}`, `trustful:curve:{init,borrow,repay,remove}` | [trustful.md](https://github.com/voltrxyz/sdk-scripts/blob/main/docs/trustful.md) |
@@ -200,6 +202,22 @@ The following assume `RPC_URL` and the role keypairs are set in `.env`. Run each
     pnpm cli -- --profile configs/my-vault.json --mode execute vault:init-direct-withdraw
     # Spot Earn uses its own command (derives the strategy for you):
     pnpm cli -- --profile configs/my-vault.json --mode execute spot:earn:init-direct-withdraw
+    ```
+  </Accordion>
+  <Accordion title="Protocol administration and per-vault adaptor policy">
+    These operations use the protocol-admin keypair through `--admin-keypair` / `ADMIN_KEYPAIR`, not a vault admin.
+    ```bash
+    # Set the protocol treasury receiving the protocol fee share:
+    pnpm cli -- --mode execute protocol:update-treasury --treasury <TREASURY_PUBKEY>
+
+    # Transfer protocol administration: current admin sets, incoming admin accepts:
+    pnpm cli -- --mode execute protocol:set-pending-admin --pending-admin <NEW_ADMIN_PUBKEY>
+    pnpm cli -- --mode execute protocol:accept-admin
+
+    # Per-vault policy: 0 enforces the allowlist; 1 permits any executable adaptor.
+    # Setting 0 does not remove adaptor receipts created while it was 1.
+    pnpm cli -- --profile configs/my-vault.json --mode execute \
+      vault:update-adaptor-policy --allow-any-adaptor 0
     ```
   </Accordion>
   <Accordion title="Deposit / withdraw (user)">

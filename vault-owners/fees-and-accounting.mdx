@@ -13,7 +13,7 @@ Realized profit is not always immediately available. It decays over the configur
 
 ### High Water Mark
 
-Performance fees only apply to profit above the historical peak asset-per-LP ratio.
+Performance fees only apply to profit above the historical peak asset-per-LP ratio. The first successful deposit seeds that high water mark.
 
 ### Fee Split
 
@@ -24,13 +24,20 @@ Eligible fees are divided across manager, admin, and protocol fee buckets accord
 ### Harvest Accumulated Fees
 
 ```typescript
-import { getHarvestFeeInstructionAsync } from "@voltr/vault-sdk";
+import {
+  fetchProtocol,
+  findProtocolPda,
+  getHarvestFeeInstructionAsync,
+} from "@voltr/vault-sdk";
+
+const [protocolAddress] = await findProtocolPda();
+const protocol = await fetchProtocol(rpc, protocolAddress);
 
 const harvestIx = await getHarvestFeeInstructionAsync({
   harvester: harvesterSigner,
   vaultManager: vaultManagerAddress,
   vaultAdmin: vaultAdminAddress,
-  protocolAdmin: protocolAdminAddress,
+  protocolTreasury: protocol.data.treasury,
   vault: vaultAddress,
 });
 ```
