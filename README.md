@@ -53,3 +53,5 @@ Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/sett
 
 ### Resources
 - [Mintlify documentation](https://mintlify.com/docs)
+
+The Neutral bundle operator guide is maintained at `vault-owners/strategies/neutral.mdx`.

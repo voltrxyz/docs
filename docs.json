@@ -103,6 +103,7 @@
             "pages": [
               "vault-owners/strategies/setup-guide",
               "vault-owners/strategies/integrations",
+              "vault-owners/strategies/neutral",
               "vault-owners/allocation/overview",
               "vault-owners/allocation/prerequisites",
               "vault-owners/allocation/deploy-funds"

@@ -16,7 +16,7 @@ Every integration is operated from the unified [`sdk-scripts`](https://github.co
 | **Trustful Adaptor** | Centralised Exchanges | `trustful:arbitrary:*`, `trustful:curve:*` |
 
 <Info>
-The Kamino, Spot, and Trustful adaptors are operated end-to-end by the CLI today. Additional adaptors (generic lending, Drift, Raydium CLMM) are built against the same vault interface; check the [repository](https://github.com/voltrxyz/sdk-scripts) for the current command surface.
+The Kamino, Spot, Trustful, and Neutral adaptors are operated end-to-end by the CLI today. Additional adaptors (generic lending, Drift, Raydium CLMM) are built against the same vault interface; check the [repository](https://github.com/voltrxyz/sdk-scripts) for the current command surface.
 </Info>
 
 <Info>
@@ -24,3 +24,8 @@ For detailed strategy initialization instructions, see the [Strategy Setup Guide
 </Info>
 
 For deployed program addresses, see [Deployed Programs](/security/deployed-programs).
+
+## Neutral Trade bundles
+
+The [Neutral bundle adaptor](/vault-owners/strategies/neutral) supports pending deposits and keeper-settled
+redemptions. Requests and claims are separate manager operations.
